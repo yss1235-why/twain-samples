@@ -551,17 +551,18 @@ TW_INT16 CTWAINDS_FreeImage::Initialize()
     return TWRC_FAILURE;
   }
 
-  m_IndependantCapMap[ICAP_IMAGEFILEFORMAT] = new CTWAINContainerInt(ICAP_IMAGEFILEFORMAT, TWTY_UINT16, TWON_ENUMERATION);
-  if( NULL == (pnCap = dynamic_cast<CTWAINContainerInt*>(m_IndependantCapMap[ICAP_IMAGEFILEFORMAT]))
-   || !pnCap->Add(TWFF_BMP, true)
-   || !pnCap->Add(TWFF_TIFF) )
+ m_IndependantCapMap[ICAP_IMAGEFILEFORMAT] = new CTWAINContainerInt(ICAP_IMAGEFILEFORMAT, TWTY_UINT16, TWON_ENUMERATION);
+if( NULL == (pnCap = dynamic_cast<CTWAINContainerInt*>(m_IndependantCapMap[ICAP_IMAGEFILEFORMAT]))
+ || !pnCap->Add(TWFF_BMP, true)
+ || !pnCap->Add(TWFF_TIFF)
+ || !pnCap->Add(TWFF_PDF) )
   {
     cerr << "Could not create ICAP_IMAGEFILEFORMAT" << endl;
     setConditionCode(TWCC_LOWMEMORY);
     return TWRC_FAILURE;
   }
-  SSTRCPY(m_CurFileExferName, sizeof(m_CurFileExferName), "sample.bmp");
-  SSTRCPY(m_DefFileExferName, sizeof(m_DefFileExferName), "sample.bmp");
+ SSTRCPY(m_CurFileExferName, sizeof(m_CurFileExferName), "sample.pdf");
+SSTRCPY(m_DefFileExferName, sizeof(m_DefFileExferName), "sample.pdf");
 
   m_IndependantCapMap[ICAP_PIXELFLAVOR] = new CTWAINContainerInt(ICAP_PIXELFLAVOR, TWTY_UINT16, TWON_ENUMERATION);
   if( NULL == (pnCap = dynamic_cast<CTWAINContainerInt*>(m_IndependantCapMap[ICAP_PIXELFLAVOR]))
