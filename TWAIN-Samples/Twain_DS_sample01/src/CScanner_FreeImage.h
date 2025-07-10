@@ -1,5 +1,5 @@
 /***************************************************************************
-* Copyright © 2007 TWAIN Working Group:  
+* Copyright Â© 2007 TWAIN Working Group:  
 *   Adobe Systems Incorporated, AnyDoc Software Inc., Eastman Kodak Company, 
 *   Fujitsu Computer Products of America, JFL Peripheral Solutions Inc., 
 *   Ricoh Corporation, and Xerox Corporation.
@@ -155,7 +155,9 @@ public:
   * @param[out] dwReceived the actual number of bytes transfered
   * @return true if successful
   */
-  bool getScanStrip(BYTE *pTransferBuffer, DWORD dwRead, DWORD &dwReceived);
+bool getScanStrip(BYTE *pTransferBuffer, DWORD dwRead, DWORD &dwReceived);
+  bool createOptimizedPDFFromImage(const char* pdfPath, FIBITMAP* image);
+  FIBITMAP* optimizeImageForPDF(FIBITMAP* originalImage);
 
   /**
   * Sets all the scanners capabilities to read only.
