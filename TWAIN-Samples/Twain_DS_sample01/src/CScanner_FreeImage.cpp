@@ -41,6 +41,7 @@
 #include "CScanner_FreeImage.h"
 
 #include <iostream>
+#include "libharu/hpdf.h"
 #include <time.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -61,6 +62,123 @@
 #include "DSMInterface.h"
 
 using namespace std;
+
+//////////////////////////////////////////////////////////////////////////////
+// PDF Creation Functions
+bool CScanner_FreeImage::createOptimizedPDFFromImage(const char* pdfPath, FIBITMAP* image)
+{
+    HPDF_Doc pdf = HPDF_New(NULL, NULL);
+    if (!pdf) return false;
+    
+    try {
+        // STEP 1: Optimize image size for PDF (keep under 199KB)
+        FIBITMAP* optimizedImage = optimizeImageForPDF(image);
+        
+        int width = FreeImage_GetWidth(optimizedImage);
+        int height = FreeImage_GetHeight(optimizedImage);
+        
+        // STEP 2: Create PDF page (A4 size for better compatibility)
+        HPDF_Page page = HPDF_AddPage(pdf);
+        HPDF_Page_SetSize(page, HPDF_PAGE_SIZE_A4, HPDF_PAGE_PORTRAIT);
+        
+        // Get A4 dimensions
+        float pageWidth = HPDF_Page_GetWidth(page);
+        float pageHeight = HPDF_Page_GetHeight(page);
+        
+        // STEP 3: Calculate scaling to fit A4 while maintaining aspect ratio
+        float scaleX = pageWidth / width;
+        float scaleY = pageHeight / height;
+        float scale = min(scaleX, scaleY);
+        
+        float scaledWidth = width * scale;
+        float scaledHeight = height * scale;
+        
+        // Center the image on page
+        float x = (pageWidth - scaledWidth) / 2;
+        float y = (pageHeight - scaledHeight) / 2;
+        
+        // STEP 4: Create compressed PDF image
+        HPDF_Image pdfImage;
+        BYTE* imageData = FreeImage_GetBits(optimizedImage);
+        int bpp = FreeImage_GetBPP(optimizedImage);
+        
+        if (bpp == 24) {
+            pdfImage = HPDF_LoadRawImageFromMem(pdf, imageData, width, height, 
+                                               HPDF_CS_DEVICE_RGB, 8);
+        } else {
+            pdfImage = HPDF_LoadRawImageFromMem(pdf, imageData, width, height, 
+                                               HPDF_CS_DEVICE_GRAY, 8);
+        }
+        
+        // STEP 5: Set PDF compression for smaller file size
+        HPDF_SetCompressionMode(pdf, HPDF_COMP_ALL);
+        
+        // STEP 6: Draw image on PDF page
+        HPDF_Page_DrawImage(page, pdfImage, x, y, scaledWidth, scaledHeight);
+        
+        // STEP 7: Save PDF
+        HPDF_SaveToFile(pdf, pdfPath);
+        
+        // Cleanup
+        if (optimizedImage != image) {
+            FreeImage_Unload(optimizedImage);
+        }
+        HPDF_Free(pdf);
+        
+        // STEP 8: Check file size
+        FILE* checkFile = fopen(pdfPath, "rb");
+        if (checkFile) {
+            fseek(checkFile, 0, SEEK_END);
+            long fileSize = ftell(checkFile);
+            fclose(checkFile);
+            
+            if (fileSize > 199000) { // 199KB limit
+                cerr << "Warning: PDF size is " << fileSize << " bytes (over 199KB limit)" << endl;
+            }
+        }
+        
+        return true;
+    }
+    catch (...) {
+        HPDF_Free(pdf);
+        return false;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Image optimization function for smaller PDF
+FIBITMAP* CScanner_FreeImage::optimizeImageForPDF(FIBITMAP* originalImage)
+{
+    FIBITMAP* optimized = originalImage;
+    
+    // STEP 1: Optimize dimensions (resize if too large)
+    int width = FreeImage_GetWidth(originalImage);
+    int height = FreeImage_GetHeight(originalImage);
+    
+    // If image is very large, resize to reasonable size for PDF
+    if (width > 1200 || height > 1200) {
+        float scale = min(1200.0f / width, 1200.0f / height);
+        int newWidth = (int)(width * scale);
+        int newHeight = (int)(height * scale);
+        
+        optimized = FreeImage_Rescale(originalImage, newWidth, newHeight, FILTER_LANCZOS3);
+    }
+    
+    // STEP 2: Optimize color depth for smaller file size
+    int bpp = FreeImage_GetBPP(optimized);
+    if (bpp > 8) {
+        // For text/logo images, try to reduce to 8-bit if possible
+        FIBITMAP* reduced = FreeImage_ColorQuantize(optimized, FIQ_WUQUANT);
+        if (reduced) {
+            if (optimized != originalImage) {
+                FreeImage_Unload(optimized);
+            }
+            optimized = reduced;
+        }
+    }
+    
+    return optimized;
+}
 
 #ifdef TWNDS_OS_APPLE
   #include "CoreFoundation/CoreFoundation.h"
